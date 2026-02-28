@@ -1,73 +1,62 @@
 # CLAUDE.md
 
-## Go Style
+## Build & Test
 
-- Standard library preferred over frameworks
-- Use Go 1.26+
-- `go test ./...` to run tests
+- `go test ./...` to run all tests
+- `go build ./cmd/domino` to build the CLI
+- `go vet ./...` to check for issues
+- Go 1.25+, module path `github.com/tygern/domino`
 
 ## Project Structure
 
 ```
-cmd/           # Entry points — one subdirectory per binary
-internal/      # Private application packages
-pkg/           # Reusable public packages
+cmd/domino/        # CLI entry point
+internal/
+  coxeter/         # Type D signed permutations, expressions, bad element enumeration
+  tableau/         # Domino tableaux (Garfinkle algorithm), heaps
+  tikz/            # TikZ rendering for tableaux and heaps
 ```
+
+## Key Types
+
+- `coxeter.Element` — signed permutation (immutable, value type). Constructor `NewElement([]int)` validates even-negatives constraint.
+- `coxeter.Expression` — sequence of generators. Constructor `NewExpression([]int, rank)`. Convert with `ToElement()` / `elem.ReducedExpression()`.
+- `tableau.Domino` — immutable value type with `Label`, `Col`, `Row`, `IsVertical`.
+- `tableau.Tableau` — grid-backed domino tableau. Constructed via `tableau.New(elem)`, accessed via `RightTableau(elem)` / `LeftTableau(elem)`.
+- `tableau.Heap` — heap poset. Constructed via `NewHeap(elem)`.
+
+## Design Conventions
+
+- All core types are immutable — methods return new values, never mutate
+- `Tableau` uses an internal 2D grid for O(1) positional lookups during shuffling
+- `BadElements(rank)` uses parallel backtracking with pruning, not brute force
+- Rendering (tikz package) is fully separated from data (tableau package)
+
+## Generator Numbering
+
+Type D generators use the convention from the thesis (arXiv:1304.6074):
+- `s_1`: swaps positions 1,2 with negation
+- `s_2` through `s_n`: adjacent transpositions (s_i swaps positions i-1, i)
+- `s_1` and `s_2` both connect to `s_3` (the branch)
+
+## Go Style
+
+- Standard library preferred over frameworks
+- Only external dependency is `testify` for test assertions
+- Minimal comments — comment the "why" not the "what"
+- No unnecessary abstractions
 
 ## Naming
 
 - **Packages**: short, lowercase, single word
-- **Constructors**: always prefixed with `New` (`New`, `NewService`, `NewClient`)
-- **Records/models**: plain structs, named for what they represent (`ChunkRecord`, `DataRecord`)
-
-## Interfaces
-
-- Small and focused — one or two methods
-- Defined where they are consumed, not where they are implemented
-- Unexported when only used within one package
-
-## Dependency Injection
-
-- Constructor-based, no DI frameworks
-- Interfaces for external dependencies, concrete types for internal ones
-- No global state — everything wired through constructors in `main()`
+- **Constructors**: prefixed with `New` (`NewElement`, `NewExpression`, `NewHeap`)
+- **Test functions**: `TestTypeName_MethodName`
 
 ## Error Handling
 
-- Wrap with context: `fmt.Errorf("unable to list ids: %w", err)`
-- Combine multiple: `errors.Join(errs...)`
-- Check with `errors.Is()`
-- No custom error types — use standard `error` and wrapping
-- Explicitly ignore with `_ = thing.Close()`
-
-## Logging
-
-- `log/slog` — structured key-value pairs
-- Minimal — log at boundaries, not every step
-
-## Configuration
-
-- Environment variables, fail fast on missing required values at startup
-
-## Database
-
-- `database/sql` — no ORMs
-- Write generic helpers for scanning rows into records
-- Raw SQL for migrations
-
-## Concurrency
-
-- `context.Context` passed through for cancellation and timeouts
-- Goroutines + channels when needed
-- Buffered channels when producer shouldn't block
-
-## Testing
-
-- Build your own assertions with the standard library
-- Test function naming: `TestTypeName_MethodName`
-- Hand-written fakes over mock libraries
-- `t.Cleanup()` for teardown
-- Isolate external dependencies per test (test DBs, ephemeral servers)
+- Constructors return `(T, error)`, validated at boundaries
+- CLI exits with `fmt.Fprintln(os.Stderr, ...)` and `os.Exit(1)`
+- Wrap with context: `fmt.Errorf("description: %w", err)`
 
 ## Imports
 
@@ -84,11 +73,3 @@ Two groups separated by a blank line:
 4. Constructor (`New*`)
 5. Methods
 6. Private helpers
-7. Interfaces (if defined locally)
-
-## General Principles
-
-- Minimal comments — comment the "why" not the "what"
-- No unnecessary abstractions — three similar lines is better than a premature helper
-- Each package has a clear single responsibility
-- Prefer closures for injecting dependencies into function values
