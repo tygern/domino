@@ -132,6 +132,25 @@ func TestElement_LeftDescentSet(t *testing.T) {
 	assert.Equal(t, y.Inverse().RightDescentSet(), y.LeftDescentSet())
 }
 
+func TestElement_Equal(t *testing.T) {
+	a, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	b, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	assert.True(t, a.Equal(b))
+
+	c, _ := coxeter.NewElement([]int{1, 3, 2, 4})
+	assert.False(t, a.Equal(c))
+
+	d, _ := coxeter.NewElement([]int{1, 2, 3})
+	assert.False(t, a.Equal(d))
+}
+
+func TestElement_IsRightDescent_OutOfRange(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	assert.False(t, w.IsRightDescent(0))
+	assert.False(t, w.IsRightDescent(5))
+	assert.False(t, w.IsRightDescent(-1))
+}
+
 func TestElement_IsBad(t *testing.T) {
 	tests := []struct {
 		perm []int

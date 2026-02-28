@@ -51,6 +51,11 @@ func TestElement_ReducedExpression(t *testing.T) {
 	}
 }
 
+func TestExpression_Rank(t *testing.T) {
+	expr, _ := coxeter.NewExpression([]int{1, 3, 4}, 5)
+	assert.Equal(t, 5, expr.Rank())
+}
+
 func TestExpression_String(t *testing.T) {
 	expr, _ := coxeter.NewExpression([]int{1, 3, 4, 3}, 4)
 	assert.Equal(t, "(1, 3, 4, 3)", expr.String())

@@ -39,6 +39,29 @@ func TestHeap_Size(t *testing.T) {
 	assert.Equal(t, 0, hid.Size())
 }
 
+func TestHeap_Rank(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	assert.Equal(t, 4, tableau.NewHeap(w).Rank())
+}
+
+func TestHeap_Blocks(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	h := tableau.NewHeap(w)
+	blocks := h.Blocks()
+	assert.Len(t, blocks, w.Length())
+
+	blocks[0] = tableau.Domino{}
+	assert.NotEqual(t, tableau.Domino{}, h.Blocks()[0])
+}
+
+func TestHeap_SingleGenerator_S1(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{-2, -1, 3, 4})
+	h := tableau.NewHeap(w)
+	assert.Equal(t, 1, h.Size())
+	assert.Equal(t, 2, h.MaxWidth())
+	assert.Equal(t, 1, h.MaxHeight())
+}
+
 func TestHeap_Identity(t *testing.T) {
 	id := coxeter.NewIdentity(4)
 	h := tableau.NewHeap(id)

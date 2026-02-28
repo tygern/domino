@@ -72,6 +72,43 @@ func TestTableau_GetDomino(t *testing.T) {
 	assert.False(t, d5.IsVertical)
 }
 
+func TestTableau_Rank(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	assert.Equal(t, 4, tableau.New(w).Rank())
+
+	w6, _ := coxeter.NewElement([]int{-1, -6, 3, -4, 5, -2})
+	assert.Equal(t, 6, tableau.New(w6).Rank())
+}
+
+func TestTableau_Dominoes(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	doms := tableau.New(w).Dominoes()
+	assert.Len(t, doms, 4)
+
+	labels := make([]int, len(doms))
+	for i, d := range doms {
+		labels[i] = d.Label
+	}
+	assert.Equal(t, []int{1, 2, 3, 4}, labels)
+}
+
+func TestTableau_GetDomino_Invalid(t *testing.T) {
+	w, _ := coxeter.NewElement([]int{1, -4, 3, -2})
+	tw := tableau.New(w)
+
+	_, ok := tw.GetDomino(0)
+	assert.False(t, ok)
+
+	_, ok = tw.GetDomino(5)
+	assert.False(t, ok)
+}
+
+func TestTableau_Equal_DifferentDominoes(t *testing.T) {
+	a, _ := coxeter.NewElement([]int{1, 2, 3, 4})
+	b, _ := coxeter.NewElement([]int{2, 1, 3, 4})
+	assert.False(t, tableau.New(a).Equal(tableau.New(b)))
+}
+
 func TestTableau_Identity(t *testing.T) {
 	id := coxeter.NewIdentity(4)
 	tid := tableau.New(id)

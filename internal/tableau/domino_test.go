@@ -39,6 +39,14 @@ func TestDomino_Flip(t *testing.T) {
 	assert.True(t, d.Flip().Flip().Equal(d))
 }
 
+func TestDomino_String(t *testing.T) {
+	d := tableau.Domino{Label: 3, Col: 1, Row: 2, IsVertical: true}
+	assert.Equal(t, "Domino{3 at (1,2) vertical}", d.String())
+
+	h := tableau.Domino{Label: 5, Col: 4, Row: 1, IsVertical: false}
+	assert.Equal(t, "Domino{5 at (4,1) horizontal}", h.String())
+}
+
 func TestDomino_Equal(t *testing.T) {
 	a := tableau.Domino{Label: 1, Col: 2, Row: 3, IsVertical: true}
 	b := tableau.Domino{Label: 1, Col: 2, Row: 3, IsVertical: true}
