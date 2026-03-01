@@ -1,6 +1,9 @@
 package coxeter
 
-import "sync"
+import (
+	"runtime"
+	"sync"
+)
 
 func AllElements(rank int) []Element {
 	var result []Element
@@ -44,6 +47,13 @@ func allElementsBacktrack(perm []int, used []bool, pos, rank, negCount int, resu
 	}
 }
 
+type badWorkItem struct {
+	perm     []int
+	inv      []int
+	used     []bool
+	negCount int
+}
+
 func BadElements(rank int) []Element {
 	if rank < 4 {
 		var result []Element
@@ -55,44 +65,30 @@ func BadElements(rank int) []Element {
 		return result
 	}
 
-	type work struct {
-		absVal int
-		sign   int
-	}
+	items := generateBadWorkItems(rank)
 
-	var tasks []work
-	for absVal := 1; absVal <= rank; absVal++ {
-		for _, sign := range []int{1, -1} {
-			tasks = append(tasks, work{absVal, sign})
-		}
+	ch := make(chan int, len(items))
+	for i := range items {
+		ch <- i
 	}
+	close(ch)
 
-	results := make([][]Element, len(tasks))
+	numWorkers := runtime.NumCPU()
+	results := make([][]Element, numWorkers)
 	var wg sync.WaitGroup
 
-	for i, task := range tasks {
+	for w := 0; w < numWorkers; w++ {
 		wg.Add(1)
-		go func(idx int, w work) {
+		go func(idx int) {
 			defer wg.Done()
-			perm := make([]int, rank)
-			inv := make([]int, rank)
-			used := make([]bool, rank+1)
-
-			startVal := w.sign * w.absVal
-			perm[0] = startVal
-			used[w.absVal] = true
-			inv[w.absVal-1] = w.sign * 1
-			negCount := 0
-			if w.sign < 0 {
-				negCount = 1
-			}
-
 			var local []Element
-			badElementsBacktrack(perm, inv, used, 1, rank, negCount, &local)
+			for i := range ch {
+				item := &items[i]
+				badElementsSearch(item.perm, item.inv, item.used, 2, rank, item.negCount, &local)
+			}
 			results[idx] = local
-		}(i, task)
+		}(w)
 	}
-
 	wg.Wait()
 
 	var combined []Element
@@ -102,59 +98,227 @@ func BadElements(rank int) []Element {
 	return combined
 }
 
-func badElementsBacktrack(perm, inv []int, used []bool, pos, rank, negCount int, result *[]Element) {
+func generateBadWorkItems(rank int) []badWorkItem {
+	var items []badWorkItem
+
+	numEvenAbove := 0
+	for p := 2; p < rank; p += 2 {
+		numEvenAbove++
+	}
+
+	for absVal0 := 1; absVal0 <= rank; absVal0++ {
+		if rank-absVal0 < numEvenAbove {
+			continue
+		}
+
+		signs0 := []int{1, -1}
+		if absVal0 >= 3 && absVal0%2 == 1 {
+			signs0 = []int{1}
+		}
+
+		for _, sign0 := range signs0 {
+			negCount0 := 0
+			if sign0 < 0 {
+				negCount0 = 1
+			}
+
+			for absVal1 := 1; absVal1 <= rank; absVal1++ {
+				if absVal1 == absVal0 {
+					continue
+				}
+
+				signs1 := []int{1, -1}
+				if absVal1 >= 3 && absVal1%2 == 1 {
+					signs1 = []int{1}
+				}
+
+				for _, sign1 := range signs1 {
+					negCount1 := negCount0
+					if sign1 < 0 {
+						negCount1++
+					}
+
+					perm := make([]int, rank)
+					inv := make([]int, rank)
+					used := make([]bool, rank+1)
+
+					perm[0] = sign0 * absVal0
+					perm[1] = sign1 * absVal1
+					inv[absVal0-1] = sign0 * 1
+					inv[absVal1-1] = sign1 * 2
+					used[absVal0] = true
+					used[absVal1] = true
+
+					if !checkInvPlacement(inv, absVal0, rank) || !checkInvPlacement(inv, absVal1, rank) {
+						continue
+					}
+
+					items = append(items, badWorkItem{perm: perm, inv: inv, used: used, negCount: negCount1})
+				}
+			}
+		}
+	}
+
+	return items
+}
+
+func badElementsSearch(perm, inv []int, used []bool, pos, rank, negCount int, result *[]Element) {
 	if pos == rank {
 		if negCount%2 != 0 {
 			return
 		}
-		elem := Element{perm: make([]int, rank)}
-		copy(elem.perm, perm)
-		if elem.IsBad() {
-			*result = append(*result, elem)
+		if !isCommutingProductSlice(perm) {
+			cp := make([]int, rank)
+			copy(cp, perm)
+			*result = append(*result, Element{perm: cp})
 		}
 		return
 	}
 
-	for absVal := 1; absVal <= rank; absVal++ {
-		if used[absVal] {
-			continue
+	if pos%2 == 0 {
+		var minAbsVal int
+		if pos == 2 {
+			minAbsVal = abs(perm[0]) + 1
+		} else {
+			minAbsVal = perm[pos-2] + 1
 		}
-		used[absVal] = true
 
-		for _, sign := range []int{1, -1} {
-			newNeg := negCount
-			if sign < 0 {
-				newNeg++
-			}
-			if pos == rank-1 && newNeg%2 != 0 {
+		remainingEven := 0
+		for p := pos + 2; p < rank; p += 2 {
+			remainingEven++
+		}
+
+		for absVal := minAbsVal; absVal <= rank; absVal++ {
+			if used[absVal] {
 				continue
 			}
 
-			perm[pos] = sign * absVal
-			inv[absVal-1] = sign * (pos + 1)
+			if remainingEven > 0 {
+				available := 0
+				for v := absVal + 1; v <= rank; v++ {
+					if !used[v] {
+						available++
+					}
+				}
+				if available < remainingEven {
+					break
+				}
+			}
 
-			if canBeRightBadPartial(perm, pos, rank) && canBeRightBadPartial(inv, absVal-1, rank) {
-				badElementsBacktrack(perm, inv, used, pos+1, rank, newNeg, result)
+			perm[pos] = absVal
+			inv[absVal-1] = pos + 1
+			used[absVal] = true
+
+			if checkInvPlacement(inv, absVal, rank) {
+				badElementsSearch(perm, inv, used, pos+1, rank, negCount, result)
 			}
 
 			perm[pos] = 0
 			inv[absVal-1] = 0
+			used[absVal] = false
 		}
+	} else {
+		minSigned := perm[pos-2] + 1
 
-		used[absVal] = false
+		for absVal := 1; absVal <= rank; absVal++ {
+			if used[absVal] {
+				continue
+			}
+
+			mustBePositive := absVal >= 3 && absVal%2 == 1
+
+			for _, sign := range []int{1, -1} {
+				if sign < 0 && mustBePositive {
+					continue
+				}
+
+				signedVal := sign * absVal
+
+				if signedVal < minSigned {
+					continue
+				}
+
+				newNeg := negCount
+				if sign < 0 {
+					newNeg++
+				}
+				if pos == rank-1 && newNeg%2 != 0 {
+					continue
+				}
+
+				perm[pos] = signedVal
+				inv[absVal-1] = sign * (pos + 1)
+				used[absVal] = true
+
+				if checkInvPlacement(inv, absVal, rank) {
+					badElementsSearch(perm, inv, used, pos+1, rank, newNeg, result)
+				}
+
+				perm[pos] = 0
+				inv[absVal-1] = 0
+				used[absVal] = false
+			}
+		}
 	}
 }
 
-func canBeRightBadPartial(perm []int, filledPos, rank int) bool {
-	if rank >= 3 && perm[0] != 0 && perm[2] != 0 {
-		if -perm[0] > perm[2] {
-			return false
-		}
+func checkInvPlacement(inv []int, absVal, rank int) bool {
+	k := absVal - 1
+
+	if k >= 2 && inv[k-2] != 0 && inv[k] <= inv[k-2] {
+		return false
 	}
 
-	for j := 0; j+2 < rank; j++ {
-		if perm[j] != 0 && perm[j+2] != 0 && perm[j] > perm[j+2] {
+	if k+2 < rank && inv[k+2] != 0 && inv[k] >= inv[k+2] {
+		return false
+	}
+
+	if k == 0 && rank >= 3 && inv[2] != 0 && -inv[0] > inv[2] {
+		return false
+	}
+	if k == 2 && inv[0] != 0 && -inv[0] > inv[2] {
+		return false
+	}
+
+	return true
+}
+
+func isCommutingProductSlice(perm []int) bool {
+	n := len(perm)
+	j := 0
+
+	switch {
+	case perm[0] == 1:
+		j = 1
+	case perm[0] == -1:
+		if n < 2 || perm[1] != -2 {
 			return false
+		}
+		j = 2
+	case perm[0] == 2:
+		if n < 2 || perm[1] != 1 {
+			return false
+		}
+		j = 2
+	case perm[0] == -2:
+		if n < 2 || perm[1] != -1 {
+			return false
+		}
+		j = 2
+	default:
+		return false
+	}
+
+	for j < n-2 {
+		if perm[j] > j+2 {
+			return false
+		} else if perm[j] == j+1 {
+			j++
+		} else {
+			if perm[j+1] != j+1 {
+				return false
+			}
+			j += 2
 		}
 	}
 
