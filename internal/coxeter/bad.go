@@ -1,6 +1,7 @@
 package coxeter
 
 import (
+	"math/bits"
 	"runtime"
 	"sync"
 )
@@ -50,7 +51,7 @@ func allElementsBacktrack(perm []int, used []bool, pos, rank, negCount int, resu
 type badWorkItem struct {
 	perm     []int
 	inv      []int
-	used     []bool
+	used     uint64
 	negCount int
 }
 
@@ -140,14 +141,14 @@ func generateBadWorkItems(rank int) []badWorkItem {
 
 					perm := make([]int, rank)
 					inv := make([]int, rank)
-					used := make([]bool, rank+1)
+					var used uint64
 
 					perm[0] = sign0 * absVal0
 					perm[1] = sign1 * absVal1
 					inv[absVal0-1] = sign0 * 1
 					inv[absVal1-1] = sign1 * 2
-					used[absVal0] = true
-					used[absVal1] = true
+					used |= 1 << uint(absVal0)
+					used |= 1 << uint(absVal1)
 
 					if !checkInvPlacement(inv, absVal0, rank) || !checkInvPlacement(inv, absVal1, rank) {
 						continue
@@ -162,7 +163,7 @@ func generateBadWorkItems(rank int) []badWorkItem {
 	return items
 }
 
-func badElementsSearch(perm, inv []int, used []bool, pos, rank, negCount int, result *[]Element) {
+func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, result *[]Element) {
 	if pos == rank {
 		if negCount%2 != 0 {
 			return
@@ -183,23 +184,16 @@ func badElementsSearch(perm, inv []int, used []bool, pos, rank, negCount int, re
 			minAbsVal = perm[pos-2] + 1
 		}
 
-		remainingEven := 0
-		for p := pos + 2; p < rank; p += 2 {
-			remainingEven++
-		}
+		remainingEven := (rank - pos - 1) / 2
 
 		for absVal := minAbsVal; absVal <= rank; absVal++ {
-			if used[absVal] {
+			if used&(1<<uint(absVal)) != 0 {
 				continue
 			}
 
 			if remainingEven > 0 {
-				available := 0
-				for v := absVal + 1; v <= rank; v++ {
-					if !used[v] {
-						available++
-					}
-				}
+				unused := ^used & ((1 << uint(rank+1)) - 1)
+				available := bits.OnesCount64(unused >> uint(absVal+1))
 				if available < remainingEven {
 					break
 				}
@@ -207,7 +201,7 @@ func badElementsSearch(perm, inv []int, used []bool, pos, rank, negCount int, re
 
 			perm[pos] = absVal
 			inv[absVal-1] = pos + 1
-			used[absVal] = true
+			used |= 1 << uint(absVal)
 
 			if checkInvPlacement(inv, absVal, rank) {
 				badElementsSearch(perm, inv, used, pos+1, rank, negCount, result)
@@ -215,48 +209,63 @@ func badElementsSearch(perm, inv []int, used []bool, pos, rank, negCount int, re
 
 			perm[pos] = 0
 			inv[absVal-1] = 0
-			used[absVal] = false
+			used &^= 1 << uint(absVal)
 		}
 	} else {
 		minSigned := perm[pos-2] + 1
+		isLast := pos == rank-1
 
-		for absVal := 1; absVal <= rank; absVal++ {
-			if used[absVal] {
-				continue
+		if !isLast || negCount%2 == 0 {
+			startPos := 1
+			if minSigned > 1 {
+				startPos = minSigned
 			}
-
-			mustBePositive := absVal >= 3 && absVal%2 == 1
-
-			for _, sign := range []int{1, -1} {
-				if sign < 0 && mustBePositive {
+			for absVal := startPos; absVal <= rank; absVal++ {
+				if used&(1<<uint(absVal)) != 0 {
 					continue
 				}
 
-				signedVal := sign * absVal
-
-				if signedVal < minSigned {
-					continue
-				}
-
-				newNeg := negCount
-				if sign < 0 {
-					newNeg++
-				}
-				if pos == rank-1 && newNeg%2 != 0 {
-					continue
-				}
-
-				perm[pos] = signedVal
-				inv[absVal-1] = sign * (pos + 1)
-				used[absVal] = true
+				perm[pos] = absVal
+				inv[absVal-1] = pos + 1
+				used |= 1 << uint(absVal)
 
 				if checkInvPlacement(inv, absVal, rank) {
-					badElementsSearch(perm, inv, used, pos+1, rank, newNeg, result)
+					badElementsSearch(perm, inv, used, pos+1, rank, negCount, result)
 				}
 
 				perm[pos] = 0
 				inv[absVal-1] = 0
-				used[absVal] = false
+				used &^= 1 << uint(absVal)
+			}
+		}
+
+		if minSigned <= 0 {
+			newNeg := negCount + 1
+			if !isLast || newNeg%2 == 0 {
+				maxNegAbs := -minSigned
+				if maxNegAbs > rank {
+					maxNegAbs = rank
+				}
+				for absVal := 1; absVal <= maxNegAbs; absVal++ {
+					if absVal >= 3 && absVal&1 == 1 {
+						continue
+					}
+					if used&(1<<uint(absVal)) != 0 {
+						continue
+					}
+
+					perm[pos] = -absVal
+					inv[absVal-1] = -(pos + 1)
+					used |= 1 << uint(absVal)
+
+					if checkInvPlacement(inv, absVal, rank) {
+						badElementsSearch(perm, inv, used, pos+1, rank, newNeg, result)
+					}
+
+					perm[pos] = 0
+					inv[absVal-1] = 0
+					used &^= 1 << uint(absVal)
+				}
 			}
 		}
 	}
