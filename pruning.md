@@ -74,7 +74,7 @@ After choosing a value $v$ at an even position, the algorithm counts
 how many unused values greater than $v$ remain, using a population
 count on the bitmask:
 
-$$\texttt{available} = \operatorname{popcount}\!\bigl(\overline{\texttt{used}} \gg (v+1)\bigr).$$
+$$\texttt{available} = \mathsf{popcount}\!\bigl(\overline{\texttt{used}} \gg (v+1)\bigr).$$
 
 If this count is less than the number of even positions still to be
 filled, no valid completion exists. Since the even-position values must
