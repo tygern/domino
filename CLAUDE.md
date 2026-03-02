@@ -5,7 +5,7 @@
 - `go test ./...` to run all tests
 - `go build ./cmd/domino` to build the CLI
 - `go vet ./...` to check for issues
-- Go 1.25+, module path `github.com/tygern/domino`
+- Go 1.26+, module path `github.com/tygern/domino`
 
 ## Project Structure
 
