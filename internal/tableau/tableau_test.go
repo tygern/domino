@@ -129,6 +129,19 @@ func TestTableau_RightAndLeft(t *testing.T) {
 	assert.True(t, left.Equal(rightOfInverse))
 }
 
+func TestTableau_OutOfOrderLabels(t *testing.T) {
+	// [3,1,2,4]: label 3 is inserted first, then label 1 overwrites its grid cells.
+	// When label 3 is shuffled, removeDomino encounters a first cell already overwritten.
+	elem, _ := coxeter.NewElement([]int{3, 1, 2, 4})
+	tab := tableau.New(elem)
+	assert.Equal(t, 4, tab.Size())
+
+	for i := 1; i <= 4; i++ {
+		_, ok := tab.GetDomino(i)
+		assert.True(t, ok, "domino %d should be present", i)
+	}
+}
+
 func TestTableau_Exhaustive_D4(t *testing.T) {
 	all := coxeter.AllElements(4)
 	assert.Len(t, all, 192)

@@ -62,6 +62,19 @@ func TestHeap_SingleGenerator_S1(t *testing.T) {
 	assert.Equal(t, 1, h.MaxHeight())
 }
 
+func TestHeap_RightNeighborTaller(t *testing.T) {
+	// Expression (4, 3): gen=4 raises heights[2]=heights[3]=1, then gen=3
+	// sees heights[2]=1 > heights[1]=0, exercising the right-neighbor branch.
+	elem, _ := coxeter.NewElement([]int{1, 4, 2, 3, 5, 6})
+	h := tableau.NewHeap(elem)
+	assert.Equal(t, 2, h.Size())
+	assert.Equal(t, 4, h.MaxWidth())
+	assert.Equal(t, 2, h.MaxHeight())
+	blocks := h.Blocks()
+	// gen=3 block is pushed to row 1 by gen=4's heights
+	assert.Equal(t, 1, blocks[1].Row)
+}
+
 func TestHeap_Identity(t *testing.T) {
 	id := coxeter.NewIdentity(4)
 	h := tableau.NewHeap(id)
