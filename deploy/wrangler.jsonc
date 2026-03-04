@@ -1,0 +1,28 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "domino",
+  "main": "src/index.ts",
+  "compatibility_date": "2026-03-04",
+  "compatibility_flags": ["nodejs_compat"],
+  "containers": [
+    {
+      "class_name": "DominoContainer",
+      "image": "../Dockerfile",
+      "max_instances": 3
+    }
+  ],
+  "durable_objects": {
+    "bindings": [
+      {
+        "class_name": "DominoContainer",
+        "name": "DOMINO_CONTAINER"
+      }
+    ]
+  },
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["DominoContainer"]
+    }
+  ]
+}
