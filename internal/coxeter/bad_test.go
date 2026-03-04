@@ -1,7 +1,9 @@
 package coxeter_test
 
 import (
+	"context"
 	"sort"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -200,4 +202,53 @@ func TestBadElements_AllResultsAreBad(t *testing.T) {
 		}
 		t.Logf("D_%d: %d bad elements, all verified", rank, len(bad))
 	}
+}
+
+func TestBadElementsStream_D6(t *testing.T) {
+	var mu sync.Mutex
+	var streamed []string
+	coxeter.BadElementsStream(context.Background(), 6, func(e coxeter.Element) {
+		mu.Lock()
+		streamed = append(streamed, e.String())
+		mu.Unlock()
+	})
+	sort.Strings(streamed)
+
+	blocking := coxeter.BadElements(6)
+	var expected []string
+	for _, e := range blocking {
+		expected = append(expected, e.String())
+	}
+	sort.Strings(expected)
+
+	assert.Equal(t, expected, streamed)
+}
+
+func TestBadElementsSample(t *testing.T) {
+	samples := coxeter.BadElementsSample(context.Background(), 6, 10)
+	assert.Len(t, samples, 3, "D_6 has only 3 bad elements, sample should be capped")
+	for _, elem := range samples {
+		assert.True(t, elem.IsBad(), "sampled non-bad element: %v", elem)
+	}
+
+	samples8 := coxeter.BadElementsSample(context.Background(), 8, 5)
+	assert.Len(t, samples8, 5, "D_8 has 8 bad elements, sample of 5 should return 5")
+	for _, elem := range samples8 {
+		assert.True(t, elem.IsBad(), "sampled non-bad element: %v", elem)
+	}
+}
+
+func TestBadElementsStream_Cancellation(t *testing.T) {
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	count := 0
+	var mu sync.Mutex
+	coxeter.BadElementsStream(ctx, 10, func(e coxeter.Element) {
+		mu.Lock()
+		count++
+		mu.Unlock()
+	})
+
+	assert.Less(t, count, 21)
 }

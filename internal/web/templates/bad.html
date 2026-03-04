@@ -1,0 +1,41 @@
+{{define "title"}}Bad Elements{{end}}
+{{define "content"}}
+<h1>Bad Elements</h1>
+
+<p>An element \(w \in D_n\) is <em>bad</em> if it is not a commuting product of generators
+but both \(w\) and \(w^{-1}\) satisfy the right-bad condition: for each
+position \(j\), \(w(j) &lt; w(j+2)\) and \(-w(1) &lt; w(3)\). Bad elements are precisely
+those for which the leading coefficient of the Kazhdan–Lusztig polynomial
+\(P_{e,w}\) cannot be computed by the standard recursive formula.</p>
+
+<p>The number of bad elements satisfies the recurrence
+\(a(n) = a(n{-}1) + a(n{-}2) + [n \text{ even}]\).</p>
+
+{{if .Rows}}
+<table>
+    <thead>
+        <tr><th>Rank</th><th>Count</th><th></th></tr>
+    </thead>
+    <tbody>
+    {{range .Rows}}
+        <tr>
+            <td>\(D_{ {{- .Rank -}} }\)</td>
+            <td>{{.Count}}</td>
+            <td>
+                <a href="/bad?rank={{.Rank}}">View</a>
+                {{if gt .Rank 14}}
+                    | <a href="/bad/download?rank={{.Rank}}">Download CSV</a>
+                {{end}}
+            </td>
+        </tr>
+    {{end}}
+    </tbody>
+</table>
+{{end}}
+
+<form action="/bad" method="get">
+    <label for="rank">Rank \(n\) for \(D_n\):</label>
+    <input type="number" id="rank" name="rank" min="2" placeholder="6">
+    <button type="submit">Enumerate</button>
+</form>
+{{end}}

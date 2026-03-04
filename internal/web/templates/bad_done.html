@@ -1,0 +1,17 @@
+{{define "bad_done"}}
+        </ol>
+        <p id="bad-summary">{{.Count}} bad elements in \(D_{ {{- .Rank -}} }\).{{if .TimedOut}} (Computation timed out; results may be incomplete.){{end}}</p>
+    </main>
+    <footer>
+        <p>Based on <a href="https://arxiv.org/abs/1304.6074"><em>Leading Coefficients of Kazhdan–Lusztig Polynomials in Type D</em></a>.</p>
+    </footer>
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('#math-content, #bad-summary').forEach(function(el) {
+                renderMathInElement(el);
+            });
+        });
+    </script>
+</body>
+</html>
+{{end}}

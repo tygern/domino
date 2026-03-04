@@ -1,0 +1,64 @@
+{{template "layout" .}}
+{{define "title"}}Element {{.Permutation}}{{end}}
+{{define "content"}}
+<h1>Element {{.Permutation}}</h1>
+
+<section>
+    <h2>Properties</h2>
+    <p>The <em>length</em> \(\ell(w)\) of an element is the minimum number of generators needed to
+    express it, equivalently the number of inversions in the signed permutation. The
+    <em>right descent set</em> is \(\{s_i : \ell(w s_i) &lt; \ell(w)\}\) and the
+    <em>left descent set</em> is \(\{s_i : \ell(s_i w) &lt; \ell(w)\}\).</p>
+    <dl>
+        <dt>Rank</dt><dd>{{.Rank}}</dd>
+        <dt>Length</dt><dd>{{.Length}}</dd>
+        <dt>Right descent set</dt><dd>{{.RightDescent}}</dd>
+        <dt>Left descent set</dt><dd>{{.LeftDescent}}</dd>
+        <dt>Bad</dt><dd>{{if .IsBad}}Yes{{else}}No{{end}}</dd>
+        <dt>Reduced expression</dt><dd>{{.Reduced}}</dd>
+    </dl>
+</section>
+
+<section>
+    <h2>Bad element status</h2>
+    {{if .IsBad}}
+    <p>This element is <strong>bad</strong>. It is not a commuting product of generators, yet both
+    \(w\) and \(w^{-1}\) satisfy the right-bad condition. The leading coefficient \(\mu(e,w)\)
+    of the Kazhdan–Lusztig polynomial \(P_{e,w}\) requires special analysis beyond the
+    standard recursive formula.</p>
+    {{else}}
+    <p>This element is <strong>not bad</strong>. Either it is a commuting product of generators
+    or it fails the right-bad condition for \(w\) or \(w^{-1}\).</p>
+    {{end}}
+</section>
+
+<section>
+    <h2>Domino Tableaux</h2>
+    <p>The right and left domino tableaux are constructed via the Garfinkle insertion
+    algorithm. Each position \(i\) in the signed permutation produces a domino with label
+    \(|w(i)|\): vertical if \(w(i) &lt; 0\), horizontal if \(w(i) &gt; 0\).
+    The right tableau \(R(w)\) is built from \(w\) directly;
+    the left tableau \(L(w)\) from the inverse \(w^{-1}\).</p>
+    <div class="tableaux">
+        <figure>
+            <figcaption>Right tableau \(R(w)\)</figcaption>
+            {{.RightTableau}}
+        </figure>
+        <figure>
+            <figcaption>Left tableau \(L(w)\)</figcaption>
+            {{.LeftTableau}}
+        </figure>
+    </div>
+</section>
+
+<section>
+    <h2>Heap</h2>
+    <p>The heap is a partially ordered set on the generators of a reduced expression.
+    Two generators are comparable when they do not commute, i.e., they are adjacent in the
+    type \(D\) Dynkin diagram. Generators \(s_1\) and \(s_2\) share the leftmost column,
+    reflecting the branch where both connect to \(s_3\).</p>
+    <figure>
+        {{.HeapSVG}}
+    </figure>
+</section>
+{{end}}

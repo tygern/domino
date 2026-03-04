@@ -1,0 +1,37 @@
+{{define "title"}}Bad Elements of D{{.Rank}}{{end}}
+{{define "content"}}
+<h1>Bad Elements of \(D_{ {{- .Rank -}} }\)</h1>
+
+<p>There are <strong>{{.Count}}</strong> bad elements in \(D_{ {{- .Rank -}} }\).</p>
+
+<p><a href="/bad/download?rank={{.Rank}}">Download as CSV</a> | <a href="/bad">Back to summary</a></p>
+
+<h2>Random sample</h2>
+
+<ol id="sample-list">
+{{range .Rows}}
+    <li><a href="/element?perm={{.Perm}}">{{.Display}}</a></li>
+{{end}}
+</ol>
+
+<button id="refresh-btn" type="button">Show 10 more</button>
+
+<script>
+document.getElementById('refresh-btn').addEventListener('click', function() {
+    fetch('/bad/sample?rank={{.Rank}}')
+        .then(function(r) { return r.json(); })
+        .then(function(items) {
+            var ol = document.getElementById('sample-list');
+            ol.innerHTML = '';
+            items.forEach(function(item) {
+                var li = document.createElement('li');
+                var a = document.createElement('a');
+                a.href = '/element?perm=' + item.perm;
+                a.textContent = item.display;
+                li.appendChild(a);
+                ol.appendChild(li);
+            });
+        });
+});
+</script>
+{{end}}

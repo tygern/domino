@@ -196,6 +196,16 @@ produces
 Generators $s_1$ and $s_2$ are rendered with phantom spacing to indicate
 their shared position at the branch of the Dynkin diagram.
 
+### `web` — web interface
+
+Start a web server with an interactive element explorer and bad element enumeration.
+
+```shell
+go run ./cmd/web
+```
+
+The server listens on `http://localhost:8080` by default. Set the `PORT` environment variable to use a different port.
+
 ### `bad` — enumerate bad elements
 
 List all bad elements of $D_n$ for a given rank.

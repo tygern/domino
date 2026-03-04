@@ -1,7 +1,9 @@
 package coxeter
 
 import (
+	"context"
 	"math/bits"
+	"math/rand/v2"
 	"runtime"
 	"sync"
 )
@@ -56,14 +58,35 @@ type badWorkItem struct {
 }
 
 func BadElements(rank int) []Element {
+	var result []Element
+	BadElementsStream(context.Background(), rank, func(e Element) {
+		result = append(result, e)
+	})
+	return result
+}
+
+func BadElementsSample(ctx context.Context, rank, n int) []Element {
+	reservoir := make([]Element, 0, n)
+	seen := 0
+	BadElementsStream(ctx, rank, func(e Element) {
+		seen++
+		if len(reservoir) < n {
+			reservoir = append(reservoir, e)
+		} else if rand.IntN(seen) < n {
+			reservoir[rand.IntN(n)] = e
+		}
+	})
+	return reservoir
+}
+
+func BadElementsStream(ctx context.Context, rank int, fn func(Element)) {
 	if rank < 4 {
-		var result []Element
 		for _, e := range AllElements(rank) {
 			if e.IsBad() {
-				result = append(result, e)
+				fn(e)
 			}
 		}
-		return result
+		return
 	}
 
 	items := generateBadWorkItems(rank)
@@ -75,28 +98,30 @@ func BadElements(rank int) []Element {
 	close(ch)
 
 	numWorkers := runtime.NumCPU()
-	results := make([][]Element, numWorkers)
+	var fnMu sync.Mutex
+	safeFn := func(e Element) {
+		fnMu.Lock()
+		fn(e)
+		fnMu.Unlock()
+	}
 	var wg sync.WaitGroup
 
 	for w := 0; w < numWorkers; w++ {
 		wg.Add(1)
-		go func(idx int) {
+		go func() {
 			defer wg.Done()
-			var local []Element
 			for i := range ch {
+				select {
+				case <-ctx.Done():
+					return
+				default:
+				}
 				item := &items[i]
-				badElementsSearch(item.perm, item.inv, item.used, 2, rank, item.negCount, &local)
+				badElementsSearchStream(ctx, item.perm, item.inv, item.used, 2, rank, item.negCount, safeFn)
 			}
-			results[idx] = local
-		}(w)
+		}()
 	}
 	wg.Wait()
-
-	var combined []Element
-	for _, r := range results {
-		combined = append(combined, r...)
-	}
-	return combined
 }
 
 func generateBadWorkItems(rank int) []badWorkItem {
@@ -163,7 +188,11 @@ func generateBadWorkItems(rank int) []badWorkItem {
 	return items
 }
 
-func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, result *[]Element) {
+func badElementsSearchStream(ctx context.Context, perm, inv []int, used uint64, pos, rank, negCount int, fn func(Element)) {
+	if ctx.Err() != nil {
+		return
+	}
+
 	if pos == rank {
 		if negCount%2 != 0 {
 			return
@@ -171,7 +200,7 @@ func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, re
 		if !isCommutingProductSlice(perm) {
 			cp := make([]int, rank)
 			copy(cp, perm)
-			*result = append(*result, Element{perm: cp})
+			fn(Element{perm: cp})
 		}
 		return
 	}
@@ -204,7 +233,7 @@ func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, re
 			used |= 1 << uint(absVal)
 
 			if checkInvPlacement(inv, absVal, rank) {
-				badElementsSearch(perm, inv, used, pos+1, rank, negCount, result)
+				badElementsSearchStream(ctx, perm, inv, used, pos+1, rank, negCount, fn)
 			}
 
 			perm[pos] = 0
@@ -230,7 +259,7 @@ func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, re
 				used |= 1 << uint(absVal)
 
 				if checkInvPlacement(inv, absVal, rank) {
-					badElementsSearch(perm, inv, used, pos+1, rank, negCount, result)
+					badElementsSearchStream(ctx, perm, inv, used, pos+1, rank, negCount, fn)
 				}
 
 				perm[pos] = 0
@@ -259,7 +288,7 @@ func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, re
 					used |= 1 << uint(absVal)
 
 					if checkInvPlacement(inv, absVal, rank) {
-						badElementsSearch(perm, inv, used, pos+1, rank, newNeg, result)
+						badElementsSearchStream(ctx, perm, inv, used, pos+1, rank, newNeg, fn)
 					}
 
 					perm[pos] = 0
@@ -270,6 +299,8 @@ func badElementsSearch(perm, inv []int, used uint64, pos, rank, negCount int, re
 		}
 	}
 }
+
+
 
 func checkInvPlacement(inv []int, absVal, rank int) bool {
 	k := absVal - 1

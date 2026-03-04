@@ -1,0 +1,29 @@
+{{define "layout"}}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{block "title" .}}Domino Tableaux{{end}}</title>
+    <link rel="stylesheet" href="/static/style.css">
+    <link rel="stylesheet" href="/static/katex/katex.min.css">
+    <script defer src="/static/katex/katex.min.js"></script>
+    <script defer src="/static/katex/contrib/auto-render.min.js"
+            onload="renderMathInElement(document.body);"></script>
+</head>
+<body>
+    <header>
+        <nav>
+            <a href="/">Element Explorer</a>
+            <a href="/bad">Bad Elements</a>
+        </nav>
+    </header>
+    <main>
+        {{block "content" .}}{{end}}
+    </main>
+    <footer>
+        <p>Based on <a href="https://arxiv.org/abs/1304.6074"><em>Leading Coefficients of Kazhdan–Lusztig Polynomials in Type D</em></a>.</p>
+    </footer>
+</body>
+</html>
+{{end}}
